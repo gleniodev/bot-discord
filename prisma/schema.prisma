@@ -1,0 +1,55 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model ItemLog {
+  id         String   @id @default(cuid())
+  nickname   String
+  fixo       String
+  itemSlug   String
+  quantidade Int
+  acao       String
+  cidade     String
+  dataHora   DateTime @default(now())
+}
+
+model ItemLimit {
+  id            String @id @default(cuid())
+  itemSlug      String @unique
+  quantidadeMax Int
+}
+
+model ItemAlias {
+  id            Int    @id @default(autoincrement())
+  nomeDetectado String @unique
+  itemSlug      String
+}
+
+model User {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  nickname  String   @unique
+  updatedAt DateTime @updatedAt
+}
+
+model ExcessoItem {
+  id                   Int       @id @default(autoincrement())
+  nickname             String
+  itemSlug             String
+  quantidadeExcesso    Int       // Quantidade total em excesso
+  quantidadeDevolvida  Int?      @default(0) // Quantidade já devolvida
+  dataHoraRetirada     DateTime  // Quando o limite foi ultrapassado
+  dataHoraDevolucao    DateTime? // Quando foi devolvido (se foi)
+  cidade               String    // Cidade onde ocorreu
+  status               String    @default("PENDENTE") // PENDENTE, DEVOLVIDO_PARCIAL, DEVOLVIDO_TOTAL
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@map("excesso_itens")
+}
