@@ -1,3 +1,4 @@
+// schema.prisma
 generator client {
   provider = "prisma-client-js"
 }
@@ -6,6 +7,14 @@ datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
+}
+
+model ItemAlias {
+  id            Int    @id @default(autoincrement())
+  nomeDetectado String @unique
+  itemSlug      String @unique
+  quantidadeMax Int? // null = sem limite; 0 = bloqueado; >0 = limite diário
+  categoria     String @default("GERAL")
 }
 
 model ItemLog {
@@ -19,37 +28,52 @@ model ItemLog {
   dataHora   DateTime @default(now())
 }
 
-model ItemLimit {
-  id            String @id @default(cuid())
-  itemSlug      String @unique
-  quantidadeMax Int
-}
-
-model ItemAlias {
-  id            Int    @id @default(autoincrement())
-  nomeDetectado String @unique
-  itemSlug      String
-}
-
 model User {
   id        String   @id @default(cuid())
   userId    String   @unique
-  nickname  String   @unique
+  nickname  String
   updatedAt DateTime @updatedAt
+  patente   String?
 }
 
 model ExcessoItem {
-  id                   Int       @id @default(autoincrement())
-  nickname             String
-  itemSlug             String
-  quantidadeExcesso    Int       // Quantidade total em excesso
-  quantidadeDevolvida  Int?      @default(0) // Quantidade já devolvida
-  dataHoraRetirada     DateTime  // Quando o limite foi ultrapassado
-  dataHoraDevolucao    DateTime? // Quando foi devolvido (se foi)
-  cidade               String    // Cidade onde ocorreu
-  status               String    @default("PENDENTE") // PENDENTE, DEVOLVIDO_PARCIAL, DEVOLVIDO_TOTAL
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
+  id                  Int       @id @default(autoincrement())
+  nickname            String
+  itemSlug            String
+  quantidadeExcesso   Int
+  quantidadeDevolvida Int?      @default(0)
+  dataHoraRetirada    DateTime
+  dataHoraDevolucao   DateTime?
+  cidade              String
+  status              String    @default("PENDENTE")
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   @@map("excesso_itens")
 }
+
+model ControleArmas {
+  id                  Int       @id @default(autoincrement())
+  nickname            String
+  itemSlug            String
+  quantidade          Int
+  dataHoraRetirada    DateTime
+  dataHoraDevolucao   DateTime?
+  cidade              String
+  patente             String
+  statusArma          String    @default("SEM_PERMISSAO")
+  motivoRetirada      String?
+  superiOrAutorizador String?
+  observacoes         String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([nickname])
+  @@index([statusArma])
+  @@index([dataHoraRetirada])
+  @@index([itemSlug])
+  @@index([patente])
+  @@map("ControleArmas")
+}
+
+// Remova completamente o model ItemLimit, pois a coluna quantidadeMax agora vive em ItemAlias.

@@ -1,78 +1,3 @@
-// // Importa os decoradores e utilitários do NestJS
-// import { Injectable, Logger } from '@nestjs/common';
-
-// // Importa o serviço que lida com o cliente do Discord
-// import { BotService } from '../bot.service';
-
-// // Importa o serviço do Prisma, responsável pela comunicação com o banco de dados
-// import { PrismaService } from '../../../prisma/prisma.service';
-
-// // Define o serviço como injetável, permitindo que o NestJS gerencie sua instância
-// @Injectable()
-// export class SyncUsersService {
-//   // Injeta o serviço do bot (para acessar o cliente do Discord)
-//   // e o serviço do Prisma (para acessar o banco de dados)
-//   constructor(
-//     private readonly botService: BotService,
-//     private readonly prisma: PrismaService,
-//   ) {}
-
-//   // Instancia um logger para escrever mensagens no console
-//   private readonly logger = new Logger(SyncUsersService.name);
-
-//   // Função principal para sincronizar os usuários do servidor Discord com o banco de dados
-//   async sync() {
-//     // Obtém o cliente do Discord
-//     const client = this.botService.getClient();
-
-//     // Busca o primeiro servidor (guild) no cache
-//     const guild = client.guilds.cache.first();
-
-//     // Se nenhum servidor estiver em cache, exibe um aviso e encerra
-//     if (!guild) {
-//       this.logger.warn('Nenhum servidor (guild) encontrado no cache.');
-//       return;
-//     }
-
-//     // Busca todos os membros do servidor
-//     const members = await guild.members.fetch();
-
-//     (members)=> console.log(members) ?? console.log("sem membros")
-
-//     // Para cada membro encontrado
-//     for (const member of members.values()) {
-//       const userId = member.user.id; // ID do usuário no Discord
-//       const nickname = member.displayName; // Apelido visível no servidor
-
-//       try {
-//         // Insere ou atualiza o usuário no banco de dados
-//         await this.prisma.user.upsert({
-//           where: { userId }, // Se o userId já existir...
-//           update: { nickname }, // ...atualiza o nickname
-//           create: { userId, nickname }, // ...senão, cria um novo registro
-//         });
-//       } catch (error) {
-//         // Em caso de erro, loga o nome e o erro ocorrido
-//         this.logger.error(`Erro ao sincronizar ${nickname}:`, error);
-//       }
-//     }
-
-//     // Log final da quantidade total de membros sincronizados
-//     this.logger.log(
-//       `✅ Sincronização de usuários finalizada. Total: ${members.size}`,
-//     );
-//   }
-
-//   // Busca o userId de um usuário a partir do seu nickname salvo no banco
-//   async buscarUserIdPorNickname(nickname: string): Promise<string | null> {
-//     const user = await this.prisma.user.findUnique({
-//       where: { nickname }, // Busca o usuário pelo campo `nickname`
-//     });
-
-//     return user?.userId || null; // Retorna o userId ou null se não encontrar
-//   }
-// }
-
 import { Injectable, Logger } from '@nestjs/common';
 import { BotService } from '../bot.service';
 import { PrismaService } from '../../../prisma/prisma.service';
@@ -85,6 +10,41 @@ export class SyncUsersService {
     private readonly botService: BotService,
     private readonly prisma: PrismaService,
   ) {}
+
+  /**
+   * Separa o nickname em patente e nome baseado no padrão "Patente | Nome"
+   */
+  private separateNicknameAndPatente(displayName: string): {
+    patente: string | null;
+    nome: string;
+  } {
+    if (!displayName || typeof displayName !== 'string') {
+      return { patente: null, nome: '' };
+    }
+
+    const trimmedDisplayName = displayName.trim();
+
+    // Verifica se existe o separador " | "
+    if (trimmedDisplayName.includes(' | ')) {
+      const parts = trimmedDisplayName.split(' | ');
+
+      if (parts.length >= 2) {
+        const patente = parts[0].trim();
+        const nome = parts.slice(1).join(' | ').trim(); // Caso tenha mais de um "|", junta tudo como nome
+
+        return {
+          patente: patente || null,
+          nome: nome || trimmedDisplayName,
+        };
+      }
+    }
+
+    // Se não encontrar o padrão, considera tudo como nome e patente como null
+    return {
+      patente: null,
+      nome: trimmedDisplayName,
+    };
+  }
 
   /**
    * Sincroniza os usuários do servidor Discord com o banco de dados.
@@ -128,10 +88,10 @@ export class SyncUsersService {
       // Processar cada membro
       for (const [memberId, member] of members) {
         const userId = member.user?.id;
-        const nickname = member.displayName;
+        const displayName = member.displayName;
 
         // Validar dados do membro
-        if (!userId || !nickname) {
+        if (!userId || !displayName) {
           this.logger.warn(`⚠️ Dados inválidos para membro: ${memberId}`);
           errorCount++;
           continue;
@@ -139,24 +99,36 @@ export class SyncUsersService {
 
         // Pular bots
         if (member.user?.bot) {
-          this.logger.debug(`🤖 Pulando bot: ${nickname}`);
+          this.logger.debug(`🤖 Pulando bot: ${displayName}`);
           continue;
         }
 
-        this.logger.debug(`➡️ Sincronizando: ${nickname} (${userId})`);
+        // Separar patente e nome
+        const { patente, nome } = this.separateNicknameAndPatente(displayName);
+
+        this.logger.debug(
+          `➡️ Sincronizando: ${displayName} -> Patente: "${patente}", Nome: "${nome}" (${userId})`,
+        );
 
         try {
           // Salvar/atualizar no banco de dados
           await this.prisma.user.upsert({
             where: { userId },
-            update: { nickname },
-            create: { userId, nickname },
+            update: {
+              nickname: nome,
+              patente: patente,
+            },
+            create: {
+              userId,
+              nickname: nome,
+              patente: patente,
+            },
           });
 
           syncCount++;
         } catch (error) {
           this.logger.error(
-            `❌ Erro ao sincronizar ${nickname} (${userId}):`,
+            `❌ Erro ao sincronizar ${displayName} (${userId}):`,
             error,
           );
           errorCount++;
@@ -175,24 +147,26 @@ export class SyncUsersService {
   /**
    * Busca o ID do usuário pelo nickname salvo no banco.
    */
-  // No SyncUsersService, adicione este método:
   async buscarUserIdPorNicknameLike(nickname: string): Promise<string | null> {
     try {
       const user = await this.prisma.user.findFirst({
         where: {
           nickname: {
-            contains: nickname, // ou use 'mode: 'insensitive'' para case-insensitive
+            contains: nickname,
             mode: 'insensitive',
           },
         },
         select: {
           userId: true,
           nickname: true,
+          patente: true,
         },
       });
 
       if (user) {
-        this.logger.log(`🔍 Encontrado: ${user.nickname} -> ${user.userId}`);
+        this.logger.log(
+          `🔍 Encontrado: ${user.patente ? `${user.patente} | ` : ''}${user.nickname} -> ${user.userId}`,
+        );
         return user.userId;
       }
 
