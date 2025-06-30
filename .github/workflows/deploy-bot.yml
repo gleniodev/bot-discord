@@ -1,0 +1,71 @@
+name: Deploy Bot to VPS
+
+on:
+  push:
+    branches: [main, production]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.BOT_VPS_HOST }}
+          username: security
+          key: ${{ secrets.BOT_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.BOT_SSH_PORT || 22 }}
+          script: |
+            # Definir variáveis
+            APP_DIR="/home/security/bot-app"
+            BACKUP_DIR="/home/security/bot-app/backups"
+
+            # Criar backup se app existir
+            if [ -d "$APP_DIR/current" ]; then
+              echo "Creating backup..."
+              mkdir -p $BACKUP_DIR
+              tar -czf $BACKUP_DIR/backup-$(date +%Y%m%d-%H%M%S).tar.gz -C $APP_DIR current
+              
+              # Manter apenas últimos 5 backups
+              ls -t $BACKUP_DIR/backup-*.tar.gz | tail -n +6 | xargs -r rm
+            fi
+
+            # Clonar/atualizar código
+            cd $APP_DIR
+            if [ ! -d "current" ]; then
+              git clone git@github.com:seu-usuario/seu-repo-bot.git current
+            else
+              cd current
+              git fetch origin
+              git reset --hard origin/main
+            fi
+
+            cd $APP_DIR/current
+
+            # Instalar dependências
+            npm ci --production
+
+            # Build da aplicação
+            npm run build
+
+            # Restart do serviço
+            sudo systemctl restart bot-winters
+
+            echo "Deploy completed successfully!"
