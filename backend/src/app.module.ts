@@ -3,13 +3,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { BotService } from './bot/bot.service';
 import { SyncUsersModule } from './bot/sync/sync-users.module';
 import { BotListenersModule } from './bot/listeners/bot-listeners.module'; // 👈 Adicione esta linha
-import { MedalsModule } from './bot/medals/medals.module';
+// import { MedalsModule } from './bot/medals/medals.module';
 
 @Module({
   imports: [
     SyncUsersModule,
     BotListenersModule,
-    MedalsModule, // 👈 Adicione esta linha
+    // MedalsModule,
   ],
   providers: [BotService, PrismaService],
   // Remova MessageListener daqui, pois agora está no BotListenersModule

@@ -3,13 +3,13 @@ import { BotService } from './bot.service';
 import { MessageListener } from './listeners/message.listener';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SyncUsersModule } from './sync/sync-users.module';
-import { MedalsService } from './medals/medals.service';
+// import { MedalsService } from './medals/medals.service';
 import { MemberListener } from './listeners/member.listener';
 import { Client, GatewayIntentBits, Partials } from 'discord.js';
 
 @Module({
   imports: [SyncUsersModule],
-  providers: [BotService, MessageListener, PrismaService, MedalsService],
+  providers: [BotService, MessageListener, PrismaService],
 })
 export class BotModule {
   public client: Client;
