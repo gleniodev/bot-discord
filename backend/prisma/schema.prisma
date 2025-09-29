@@ -29,26 +29,28 @@ model ItemLog {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  nickname  String  
-  patente   String?
+  id       String  @id @default(cuid())
+  userId   String  @unique
+  nickname String
+  patente  String?
 
-  joinedServerAt    DateTime? // Data que entrou no servidor Discord
-  createdAccountAt  DateTime? // Data que criou a conta Discord
-  lastSyncAt        DateTime  @default(now()) // Última sincronização
-  premiumSince      DateTime? // Data do boost (se aplicável)
+  joinedServerAt   DateTime? // Data que entrou no servidor Discord
+  createdAccountAt DateTime? // Data que criou a conta Discord
+  lastSyncAt       DateTime  @default(now()) // Última sincronização
+  premiumSince     DateTime? // Data do boost (se aplicável)
 
-  cavalryRoleDate   DateTime? // Data que recebeu o cargo de cavalaria
-  lastOnDutyDate    DateTime? // Última entrada em on-duty
+  cavalryRoleDate DateTime? // Data que recebeu o cargo de cavalaria
+  lastOnDutyDate  DateTime? // Última entrada em on-duty
 
-  isActive          Boolean   @default(true)
-  createdAt         DateTime  @default(now())
+  isActive Boolean @default(true)
+  roles    String[] @db.Text
+
+  createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relacionamentos
-  medals            Medal[]
-  onDutyLogs        OnDutyLog[]
+  medals     Medal[]
+  onDutyLogs OnDutyLog[]
 
   @@map("users")
 }
@@ -94,40 +96,40 @@ model ControleArmas {
 }
 
 model Medal {
-  id            String      @id @default(cuid())
-  userId        String
-  user          User        @relation(fields: [userId], references: [userId])
-  
-  type          MedalType   // TEMPO_SERVICO_I, TEMPO_SERVICO_II, TEMPO_SERVICO_III
-  awardedAt     DateTime    @default(now())
-  awardedBy     String?     // UserId de quem concedeu
-  bonusAmount   Int         // Valor da bonificação
-  
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [userId])
+
+  type        MedalType // TEMPO_SERVICO_I, TEMPO_SERVICO_II, TEMPO_SERVICO_III
+  awardedAt   DateTime  @default(now())
+  awardedBy   String? // UserId de quem concedeu
+  bonusAmount Int // Valor da bonificação
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([userId, type]) // Um usuário não pode ter a mesma medalha duas vezes
   @@map("medals")
 }
 
 model OnDutyLog {
-  id          String    @id @default(cuid())
-  userId      String
-  user        User      @relation(fields: [userId], references: [userId])
-  
-  actionType  String    // "ENTROU_EM_SERVICO", "SAIU_DE_SERVICO"
-  timestamp   DateTime
-  channelId   String?   // Canal onde foi registrado
-  messageId   String?   // ID da mensagem original
-  
-  createdAt   DateTime  @default(now())
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [userId])
+
+  actionType String // "ENTROU_EM_SERVICO", "SAIU_DE_SERVICO"
+  timestamp  DateTime
+  channelId  String? // Canal onde foi registrado
+  messageId  String? // ID da mensagem original
+
+  createdAt DateTime @default(now())
 
   @@map("on_duty_logs")
 }
 
 enum MedalType {
-  TEMPO_SERVICO_I   // 1 mês - $500
-  TEMPO_SERVICO_II  // 2 meses - $1000
+  TEMPO_SERVICO_I // 1 mês - $500
+  TEMPO_SERVICO_II // 2 meses - $1000
   TEMPO_SERVICO_III // 3 meses - $1500
 
   @@map("medal_types")
